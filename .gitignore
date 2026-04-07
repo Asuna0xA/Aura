@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+
+# Generated APKs — NEVER push these to public repo
+*.apk
+*.apk.idsig
+/build/
+
+# Server runtime data
+server/androrat.db
+server/uploads/
+server/*.log
+
+# Android build artifacts
+Android_Code/.gradle/
+Android_Code/build/
+Android_Code/app/build/
+Android_Code/local.properties
+
+# Test/dump files
+/Dumps
+/test.py
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db

