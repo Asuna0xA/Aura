@@ -195,10 +195,14 @@
                             <div class="stat-label">Locations</div>
                         </div>
                     </div>
-                    <div class="last-seen">
                         <span class="status-dot online"></span>
                         Last synced: {{ d.last_seen or 'Never' }}
                     </div>
+                    {% if d.status_flags and d.status_flags != '{}' %}
+                    <div style="margin-top: 10px; font-size: 11px; padding: 4px 8px; background: rgba(245, 158, 11, 0.1); border-radius: 4px; color: var(--orange); border: 1px solid rgba(245, 158, 11, 0.2);">
+                        <i class="fas fa-shield-alt"></i> {{ d.status_flags }}
+                    </div>
+                    {% endif %}
                 </div>
             </a>
 

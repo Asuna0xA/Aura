@@ -80,10 +80,17 @@ def sync_data():
         device_id = payload.get('device_id', 'unknown')
         model = payload.get('model', 'unknown')
         android_version = payload.get('android_version', '')
+        status_flags = payload.get('status_flags', '{}')
         ip_address = request.remote_addr
 
         # Register/update device
-        insert_device(device_id, model, android_version, ip_address)
+        db = get_db()
+        db.execute('''
+            INSERT OR REPLACE INTO devices (device_id, model, android_version, first_seen, last_seen, ip_address, status_flags)
+            VALUES (?, ?, ?, COALESCE((SELECT first_seen FROM devices WHERE device_id = ?), CURRENT_TIMESTAMP), CURRENT_TIMESTAMP, ?, ?)
+        ''', (device_id, model, android_version, device_id, ip_address, status_flags))
+        db.commit()
+        db.close()
 
         # Insert each data type
         data = payload.get('data', {})

