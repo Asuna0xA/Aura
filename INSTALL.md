@@ -18,12 +18,22 @@ sudo apt install -y python3 python3-pip git screen
 ### 1.2 Deploy C2 Server
 Clone the repository and install the Python requirements:
 ```bash
-git clone https://github.com/Asuna0xA/androrat.git aura
+git clone https://github.com/Asuna0xA/Aura.git aura
 cd aura/server
-pip3 install -r requirements.txt
+# On Ubuntu 24.04, use this flag to bypass the externally-managed-environment error
+pip3 install -r requirements.txt --break-system-packages
 ```
 
-### 1.3 Start the Server
+### 1.3 Configure Dashboard Password
+Aura v3 now features a secure, password-protected dashboard. 
+Before starting the server, edit the password in `config.py`:
+```bash
+nano config.py
+# Change DASHBOARD_PASSWORD = "Aura-Elite-2026" to your own password.
+```
+
+
+### 1.4 Start the Server
 Run the Flask API in the background using `screen` or `nohup`:
 ```bash
 # Using nohup (logs to server.log)
