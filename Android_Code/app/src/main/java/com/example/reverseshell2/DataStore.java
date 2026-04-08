@@ -179,6 +179,18 @@ public class DataStore extends SQLiteOpenHelper {
         getWritableDatabase().update("pending_files", cv, "id = ?", new String[]{String.valueOf(id)});
     }
 
+    public int getUnsyncedCount(String table) {
+        int count = 0;
+        try {
+            Cursor c = getReadableDatabase().rawQuery("SELECT COUNT(*) FROM " + table + " WHERE synced = 0", null);
+            if (c.moveToFirst()) {
+                count = c.getInt(0);
+            }
+            c.close();
+        } catch (Exception e) { /* ignore */ }
+        return count;
+    }
+
     // =======================================================
     //  CLEANUP
     // =======================================================

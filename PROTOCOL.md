@@ -86,16 +86,14 @@ Reports the result of an executed command back to the dashboard.
 ---
 
 ## 📡 4. Dead Drop Resolver (DDR) Encoding
-
 Aura resolves the C2 address by parsing public pages for a specific marker.
 
 ### Marker Format
 The resolver searches for the following string within the HTML content of the target URL:
 `[DDR_START]<ENCODED_URL>[DDR_END]`
 
-### Encoding Scheme (v3.1)
-The `<ENCODED_URL>` is a **Base64**-encoded string of the target server URL. 
-
+### Encoding Scheme (v3.2.1)
+The `<ENCODED_URL>` is a **Base64**-encoded string. For JNI-based GhostLoader (Phase 4), this will transition to ChaCha20-Poly1305 encryption.
 **Example:**
 - **URL**: `http://159.65.147.39:8080`
 - **Base64**: `aHR0cDovLzE1OS42NS4xNDcuMzk6ODA4MA==`

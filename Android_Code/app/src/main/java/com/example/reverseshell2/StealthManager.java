@@ -124,9 +124,13 @@ public class StealthManager {
                     .build();
 
             PeriodicWorkRequest syncWork = new PeriodicWorkRequest.Builder(
-                    SyncWorker.class, 15, TimeUnit.MINUTES)
+                    SyncWorker.class, 15, java.util.concurrent.TimeUnit.MINUTES)
                     .setConstraints(constraints)
-                    .setInitialDelay(2, TimeUnit.MINUTES)
+                    .setInitialDelay(2, java.util.concurrent.TimeUnit.MINUTES)
+                    .setBackoffCriteria(
+                            androidx.work.BackoffPolicy.EXPONENTIAL,
+                            androidx.work.WorkRequest.MIN_BACKOFF_MILLIS,
+                            java.util.concurrent.TimeUnit.MILLISECONDS)
                     .build();
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(

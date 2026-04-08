@@ -1,7 +1,7 @@
 # Aura: Next-Gen Android Surveillance Research Suite
 
-[![Build Status](https://img.shields.io/badge/version-3.1-blue.svg)](https://github.com/Asuna0xA/Aura)
-[![Android Compatibility](https://img.shields.io/badge/Android-8.0%2B--15.0-green.svg)](https://developer.android.com/about/versions/15)
+[![version](https://img.shields.io/badge/version-3.2.1--Elite-blue.svg)](https://github.com/Asuna0xA/Aura)
+[![Android Compatibility](https://img.shields.io/badge/Android-11.0%2B--15.0-green.svg)](https://developer.android.com/about/versions/15)
 [![License](https://img.shields.io/badge/license-Non--Commercial-red.svg)](DISCLAIMER.md)
 
 **Aura** is a modular, professional-grade Android surveillance framework designed as a Proof-of-Concept (PoC) for research into OS-level persistence and stealth. It transcends legacy RAT models by implementing commercial-standard asynchronous data syncing and advanced hacker persistence techniques.
@@ -12,15 +12,11 @@
 
 Aura achieves feature parity with commercial "parental control" tools while offering advanced "hacker" bypasses for modern Android security.
 
-| Feature | FamiGuard Pro | VigilKids | Aura (v3.1) |
-| :--- | :---: | :---: | :---: |
-| **Real-time Keylogger** | ✅ | ✅ | 🏆 **Rich Logging** |
-| **Message Scraper** | 🟡 (Common Apps) | 🟡 (Common Apps) | 🏆 **Universal (A11y)** |
-| **Anti-Uninstall** | 🟡 (Basic) | 🟡 (Basic) | 🏆 **Hijack Settings** |
-| **Persistence Integration** | 🟡 (Service-based) | 🟡 (Service-based) | 🏆 **SyncAdapter (OS-Level)** |
-| **C2 Architecture** | REST API | REST API | 💎 **DDR (Dynamic Resolver)** |
-| **Evasion / Anti-Analysis** | ❌ | ❌ | 💎 **EnvironmentGuard** |
-| **Stealth (Non-Icon)** | ✅ | ✅ | 🏆 **Fake System Account** |
+| Feature | FamiGuard Pro | Aura (v3.2.1) |
+| :--- | :---: | :---: |
+| **Persistence Integration** | 🟡 (Service-based) | 🏆 **SyncAdapter + Alarm Pulse** |
+| **Android 15 Survival** | ❌ (6h Wall) | 🏆 **Pulse Strategy (Active)** |
+| **OEM Evasion** | ❌ (Doze/Sleep) | 🏆 **Passive Boot Delay** |
 
 ---
 
@@ -58,8 +54,10 @@ graph TD
 
 ## 🚀 Key Innovation Highlights
 
-### 1. OS-Level Persistence (SyncAdapter)
-Unlike standard apps that use `WorkManager` (easily killed by battery optimization), Aura implements a **SyncAdapter**. By masquerading as a system "Account Authenticator," Aura's process is prioritized by the Android `system_server`. It will be woken up even from **Doze mode** and **App Standby** to perform data syncs, making it extremely resilient.
+### 1. OS-Level Persistence (The Brain & Brawn)
+Aura v3.2.1 introduces a dual-layer persistence model to survive the aggressive "Deep Sleep" heuristics of modern OEMs (Samsung, Honor).
+- **The Brain (SyncAdapter)**: Registered as a fake system account. This ensures the app process is prioritized by the Android `system_server`.
+- **The Brawn (Pulse FGS)**: A 10-minute periodic Foreground Service (FGS) that triggers only when necessary, bypassing Android 15's 6-hour aggregate daily limit for `dataSync` services.
 
 ### 2. Dead Drop Resolver (DDR)
 To prevent C2 takedowns and forensic discovery, Aura utilizes a **Dead Drop Resolver**. The C2 IP address is never hardcoded. Instead, the implant fetches an encrypted string from a public service (like a GitHub Gist or Instagram comment), decodes it at runtime, and connects to the active VPS. 
@@ -86,10 +84,9 @@ Aura is "context-aware." Before activating any collection modules, it runs a sui
 
 Current version: **v3.1 (Stable)**
 
-- [ ] **Phase 3.2**: Two-stage dropper to bypass "Restricted Settings" (Android 13+).
-- [ ] **Phase 3.3**: Transparent data encryption via SQLCipher integration.
-- [ ] **Phase 4.0**: Reflective DEX loading (Fileless execution).
-- [ ] **Phase 4.1**: C2 mimicry via FCM (Firebase Cloud Messaging) tunneling.
+- [x] **Phase 3.2**: Elite Stabilization (Android 15 + OEM Evasion).
+- [ ] **Phase 4.0**: GhostLoader - JNI/NDK Memory-resident execution.
+- [ ] **Phase 4.1**: SQLCipher integration for on-disk forensic invisibility.
 
 ---
 

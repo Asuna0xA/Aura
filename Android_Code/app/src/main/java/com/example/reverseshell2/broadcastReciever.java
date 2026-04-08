@@ -22,14 +22,23 @@ public class broadcastReciever extends BroadcastReceiver {
             }).start();
         }
 
-        // Restart service if not running
+        // Restart service if not running (With 5-minute passive delay for Samsung/Honor survival)
         if (!isMyServiceRunning(context)) {
-            Log.v(TAG, "Service not running, restarting...");
-            Intent svcIntent = new Intent(context, mainService.class);
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                context.startForegroundService(svcIntent);
+            Log.v(TAG, "Service not running, scheduling delayed restart...");
+            if ("android.intent.action.BOOT_COMPLETED".equals(intent.getAction())) {
+                android.app.AlarmManager alarm = (android.app.AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+                Intent svcIntent = new Intent(context, mainService.class);
+                svcIntent.setAction("ACTION_START_PULSE");
+                android.app.PendingIntent pi = android.app.PendingIntent.getService(context, 100, svcIntent, android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
+                alarm.setExact(android.app.AlarmManager.ELAPSED_REALTIME_WAKEUP, android.os.SystemClock.elapsedRealtime() + 300000, pi);
             } else {
-                context.startService(svcIntent);
+                 Intent svcIntent = new Intent(context, mainService.class);
+                 svcIntent.setAction("ACTION_START_PULSE");
+                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                     context.startForegroundService(svcIntent);
+                 } else {
+                     context.startService(svcIntent);
+                 }
             }
         }
     }

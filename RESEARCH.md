@@ -1,6 +1,5 @@
-# Aura: Technical Research & Advanced Evasion
-
-This document provides a deep dive into the high-performance surveillance and persistence mechanisms implemented in the **Aura** framework (v3.1).
+# Aura: Technical Research & Elite Evasion
+This document provides a deep dive into the high-performance surveillance and persistence mechanisms implemented in the **Aura** framework (v3.2.1-Elite).
 
 ---
 
@@ -32,7 +31,16 @@ sequenceDiagram
 **Key Advantages:**
 1.  **Priority Wakeups**: The system wakes the Aura process even when the device is in **Doze mode**.
 2.  **Resilience**: Even if the app is force-stopped, the next scheduled sync from the system will re-initialise the process.
-3.  **Low Profile**: The sync happens in the background without any user-facing notification, and the "Account" in Settings can be named something generic like "Device Manager" or "System Service."
+3.  **Low Profile**: The sync happens in the background without any user-facing notification.
+
+### The "Pulse" Strategy (Android 15 Survival)
+Since Android 15 limits `dataSync` services to a 6-hour daily window, Aura v3.2.1 uses a **Pulse** execution model:
+1. **Heartbeat**: `SyncAdapter` wakes the process for <1 minute every 15 minutes to check telemetry buffers.
+2. **Pulse**: If data weight is high, `mainService` triggers a high-power 10-minute sync window.
+3. **Hibernate**: Process returns to low-power state, preserving the daily OS-enforced budget.
+
+### OEM Evasion (Samsung One UI 6+)
+To survive Samsung's "Deep Sleep" task killer, Aura implements a 5-minute **Passive Delay** on boot. This ensures the app is not caught in the initial system-wide heuristic scan performed immediately after the device starts. 
 
 ---
 

