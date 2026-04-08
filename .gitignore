@@ -8,7 +8,7 @@ __pycache__/
 /build/
 
 # Server runtime data
-server/androrat.db
+server/aura.db
 server/uploads/
 server/*.log
 
